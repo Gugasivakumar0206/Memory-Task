@@ -1,70 +1,105 @@
-const board = document.getElementById('game-board');
-const restartBtn = document.getElementById('restart');
+const emojiSets = {
+  fruit: ['🍎', '🍌', '🍇', '🍓', '🍒', '🥝', '🍍', '🍑'],
+  emoji: ['😂', '😍', '😎', '🤩', '😜', '😱', '😴', '🤯'],
+  animal: ['🐶', '🐱', '🐰', '🦊', '🐼', '🐨', '🐯', '🦁']
+};
 
-const cardsArray = ['🍎','🍌','🍒','🍇','🍋','🍉','🍑','🍓'];
-let cards = [...cardsArray, ...cardsArray]; // duplicate for pairs
-
-let flippedCards = [];
+let gameGrid = [];
+let firstCard = null;
+let secondCard = null;
 let lockBoard = false;
+let matchedPairs = 0;
+
+const gameBoard = document.getElementById('gameBoard');
+const restartBtn = document.getElementById('restart');
+const congratsMessage = document.getElementById('congratsMessage');
 
 function shuffle(array) {
-  for (let i = array.length -1; i > 0; i--) {
-    const j = Math.floor(Math.random() * (i+1));
-    [array[i], array[j]] = [array[j], array[i]];
-  }
-  return array;
+  return array.sort(() => 0.5 - Math.random());
 }
 
-function createBoard() {
-  board.innerHTML = '';
-  shuffled = shuffle(cards);
+function createCard(value) {
+  const card = document.createElement('div');
+  card.classList.add('card');
+  card.dataset.value = value;
 
-  shuffled.forEach(symbol => {
-    const card = document.createElement('div');
-    card.classList.add('card');
-    card.innerHTML = `
-      <div class="front">${symbol}</div>
-      <div class="back">?</div>
-    `;
-    card.addEventListener('click', flipCard);
-    board.appendChild(card);
+  const inner = document.createElement('div');
+  inner.classList.add('card-inner');
+
+  const front = document.createElement('div');
+  front.classList.add('card-front');
+  front.textContent = '?';
+
+  const back = document.createElement('div');
+  back.classList.add('card-back');
+  back.textContent = value;
+
+  inner.appendChild(front);
+  inner.appendChild(back);
+  card.appendChild(inner);
+
+  card.addEventListener('click', flipCard);
+  return card;
+}
+
+function setupBoard() {
+  const set = emojiSets[gameType] || emojiSets.fruit;
+  gameGrid = [...set, ...set];
+  shuffle(gameGrid);
+
+  gameBoard.innerHTML = '';
+  matchedPairs = 0;
+  congratsMessage.classList.remove('show');
+
+  gameGrid.forEach(value => {
+    const card = createCard(value);
+    gameBoard.appendChild(card);
   });
 }
 
 function flipCard() {
-  if (lockBoard || this.classList.contains('flip')) return;
+  if (lockBoard || this.classList.contains('flipped')) return;
 
-  this.classList.add('flip');
-  flippedCards.push(this);
-
-  if (flippedCards.length === 2) {
-    lockBoard = true;
+  this.classList.add('flipped');
+  if (!firstCard) {
+    firstCard = this;
+  } else {
+    secondCard = this;
     checkMatch();
   }
 }
 
 function checkMatch() {
-  const [card1, card2] = flippedCards;
-  const symbol1 = card1.querySelector('.front').textContent;
-  const symbol2 = card2.querySelector('.front').textContent;
-
-  if (symbol1 === symbol2) {
-    flippedCards = [];
-    lockBoard = false;
+  const isMatch = firstCard.dataset.value === secondCard.dataset.value;
+  if (isMatch) {
+    disableCards();
+    matchedPairs += 1;
+    if (matchedPairs === gameGrid.length / 2) {
+      congratsMessage.classList.add('show');
+    }
   } else {
-    setTimeout(() => {
-      card1.classList.remove('flip');
-      card2.classList.remove('flip');
-      flippedCards = [];
-      lockBoard = false;
-    }, 1000);
+    unflipCards();
   }
 }
 
-restartBtn.addEventListener('click', () => {
-  flippedCards = [];
-  lockBoard = false;
-  createBoard();
-});
+function disableCards() {
+  firstCard.removeEventListener('click', flipCard);
+  secondCard.removeEventListener('click', flipCard);
+  resetSelection();
+}
 
-createBoard();
+function unflipCards() {
+  lockBoard = true;
+  setTimeout(() => {
+    firstCard.classList.remove('flipped');
+    secondCard.classList.remove('flipped');
+    resetSelection();
+  }, 1000);
+}
+
+function resetSelection() {
+  [firstCard, secondCard, lockBoard] = [null, null, false];
+}
+
+restartBtn.addEventListener('click', setupBoard);
+window.addEventListener('DOMContentLoaded', setupBoard);
